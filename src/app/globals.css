@@ -24,3 +24,12 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Make TantoConnectButton smaller */
+.tanto-connect-btn-sm button,
+.tanto-connect-btn-sm .tanto-connect-button {
+  font-size: 0.85rem !important;
+  padding: 0.25rem 0.75rem !important;
+  min-height: 1.25rem !important;
+  border-radius: 2rem !important;
+}

@@ -1,103 +1,179 @@
-import Image from "next/image";
+'use client';
+
+import { useAccount, useBalance } from 'wagmi';
+import { useEvmNativeBalance } from "@moralisweb3/next";
+import { useEffect, useState } from 'react';
+import { NFTCollections } from './components/NFTCollections';
+
+const WRON_CONTRACT = "0xe514d9DEB7966c8BE0ca922de8a064264eA6bcd4"; // WRON contract on Ronin
+
+type NFT = {
+  token_address: string;
+  name?: string;
+  token_id: string;
+  metadata?: string;
+  image?: string;
+  [key: string]: any;
+};
+
+type Collection = {
+  address: string;
+  name: string;
+  image: string;
+  nfts: NFT[];
+  tags: string[];
+  
+};
+
+function parseImage(nft: NFT) {
+  // Try to get image from metadata or image field
+  if (nft.image) return nft.image;
+  if (nft.metadata) {
+    try {
+      const meta = JSON.parse(nft.metadata);
+      if (meta?.image) {
+        // Handle IPFS links
+        if (meta.image.startsWith('ipfs://')) {
+          return `https://ipfs.io/ipfs/${meta.image.replace('ipfs://', '')}`;
+        }
+        return meta.image;
+      }
+    } catch {}
+  }
+  return undefined; // no fallback
+}
+
+function parseTags(nft: NFT) {
+  if (nft.metadata) {
+    try {
+      const meta = JSON.parse(nft.metadata);
+      if (meta?.attributes && Array.isArray(meta.attributes)) {
+        return meta.attributes
+          .map((attr: any) => attr.trait_type || attr.type || attr.value)
+          .filter(Boolean)
+          .slice(0, 3); // up to 3 tags
+      }
+    } catch {}
+  }
+  return [];
+}
+
+// Add this helper to fetch collection metadata (logo/banner)
+async function fetchCollectionMeta(tokenAddress: string, apiKey: string) {
+  const res = await fetch(
+    `https://deep-index.moralis.io/api/v2.2/nft/${tokenAddress}/metadata?chain=ronin`,
+    {
+      headers: { 'X-API-Key': apiKey },
+    }
+  );
+  return res.json();
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const { address, isConnected } = useAccount();
+  const { data: nativeBalance } = useEvmNativeBalance(
+    isConnected && address
+      ? { address, chain: "0x7e4" }
+      : undefined
+  );
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  const { data: wronBalance } = useBalance({
+    address: address,
+    token: WRON_CONTRACT,
+    chainId: 2020,
+  });
+
+  const [nfts, setNfts] = useState<NFT[]>([]);
+  const [loadingNfts, setLoadingNfts] = useState(false);
+  const [collections, setCollections] = useState<Collection[]>([]);
+
+  useEffect(() => {
+    async function fetchNFTsAndCollections() {
+      if (isConnected && address) {
+        setLoadingNfts(true);
+        try {
+          const apiKey = process.env.NEXT_PUBLIC_MORALIS_API_KEY as string;
+          const nftRes = await fetch(`/api/wallet-nfts?address=${address}`);
+          const nftData = await nftRes.json();
+          const nfts: NFT[] = nftData.result || [];
+
+          // Get unique collection addresses
+          const uniqueAddresses = [
+            ...new Set(nfts.map(nft => nft.token_address)),
+          ];
+
+          // Fetch collection metadata for each collection
+          const metaResults = await Promise.all(
+            uniqueAddresses.map(addr => fetchCollectionMeta(addr, apiKey))
+          );
+          const metaMap: { [address: string]: any } = {};
+          uniqueAddresses.forEach((addr, i) => {
+            metaMap[addr] = metaResults[i];
+          });
+
+          // Attach collection_banner_image to each NFT's collection
+          const collections: Collection[] = [];
+          const collectionMap: { [address: string]: Collection } = {};
+
+          nfts.forEach(nft => {
+            const key = nft.token_address;
+            if (!collectionMap[key]) {
+              const meta = metaMap[key];
+              const image =
+                (meta && meta.collection_banner_image) ||
+                parseImage(nft)
+              const tags = parseTags(nft);
+              collectionMap[key] = {
+                address: key,
+                name: nft.name || 'Unnamed Collection',
+                image: image || '', // Ensure image is a string
+                nfts: [],
+                tags,
+              };
+              collections.push(collectionMap[key]);
+            }
+            collectionMap[key].nfts.push(nft);
+          });
+
+          setNfts(collections.flatMap(col => col.nfts));
+          setCollections(collections);
+        } finally {
+          setLoadingNfts(false);
+        }
+      } else {
+        setNfts([]);
+        setCollections([]);
+      }
+    }
+
+    fetchNFTsAndCollections();
+  }, [isConnected, address]);
+
+  return (
+    <div
+      className="min-h-screen relative"
+      style={{
+        backgroundImage: "url('/assets/background.png')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      {/* Black gradient overlay for darkening effect, lighter at the top */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.85) 15%, rgba(0,0,0,0.92) 70%, rgba(0,0,0,0.98) 100%)',
+          zIndex: 0,
+        }}
+      />
+      <div className="relative z-10 py-8 px-4 sm:px-6 lg:px-8">
+        <NFTCollections collections={collections} loading={loadingNfts} />
+      </div>
     </div>
   );
+}
+
+// Or, if you must import in a shared file:
+if (typeof window !== 'undefined') {
+  // Safe to use WalletConnect or anything that uses indexedDB
 }
